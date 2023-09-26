@@ -1,94 +1,85 @@
 '''
 Title:  Python Acknowledgment Editor
 Author: Alan Carrasco
-Date:   21/sep/2023
+Date:   25/sep/2023
 '''
 
-import csv                                                                  # Esta clase permite leer y editar archivos csv
+# Talvez sea necesario que se instale reportlab para poder correr el script
+
+import csv                                                                  # Esta biblioteca permite leer y editar archivos csv
+import os                                                                   # Esta biblioteca permite interactuar con el OS
 from reportlab.pdfgen.canvas import Canvas                                  # Esta clase permite la edición de pdf de cero
-from reportlab.lib.units import mm, cm, inch                                # Esta clase importa las constantes equivalentes en cm e inch
-from reportlab.lib.colors import black, goldenrod, darkblue, royalblue      # Esta clase importa los colores para el texto
+from reportlab.lib.units import mm, inch                                    # Esta clase importa las constantes equivalentes en cm e inch
+from reportlab.pdfbase.pdfmetrics import stringWidth                        # Esta función retorna el tamaño de que tendría un texto
+from reportlab.lib.colors import black                                      # ESta constante es el valor rgb de un color
 
-############################
-#
-#   Cuando acabes con el diseño
-#   ordena estas constantes
-#
-############################
+# Función para limpiar cadenas
+def clean_string(string:str) -> str:
+  special_chars = 'áéíóú¿?¡!.,;:-_'
+  replacement_special_chars = 'aeiou          '
+  translation_table = str.maketrans(special_chars,replacement_special_chars)
+  formated_string = string.translate(translation_table).lower()
+  return formated_string
 
-csv_delimiter = ','                        # Delimitador del csv, puede ser ',', ';' o '.'
-csv_filename = 'nombre_archivo.csv'        # Especificar el nombre del archivo
+csv_delimiter = ','                                 # Delimitador del csv, puede ser ',', ';' o '.'
+csv_filename = 'Usuarios/datosConstancias.csv'      # Ubicación del CSV
+plantilla = "Logos/plantillaConstancia.png"         # Ubicación de la plantilla de constancia
 
 ancho_constancia = 1080 * mm               # Especifica el ancho de la constancia
 alto_constancia = 1080 * mm                # Especifica el ancho de la constancia
 
-ancho_barras = 25 * mm
-
-headers = True                             # True si el csv tiene títulos, False si no tiene títulos.
-
-logoFI = "Logos/escudofi_azul.jpg"         # Ubicación de logo FI
-anchoFI = 153*mm
-altoFI = 182*mm
-
-logoUNAM = "Logos/escudounam_azul.jpg"     # Ubicación de logo UNAM
-anchoUNAM = 155*mm
-altoUNAM = 174*mm
-
-logoPROTECO = "Logos/logoPROTECO.jpeg"
-anchoPROTECO = 1027*mm
-altoPROTECO = 716*mm
-
-logos_border_padding = 22*mm
-y_logos = 778*mm
-
-'''
-with open(csv_filename) as csv_file:
+with open(csv_filename, 'r', encoding='utf-8') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=csv_delimiter)
-    line_count = 0
-    
-    for row in csv_reader:
-        if headers == True and line_count == 0:
-            print(f'{", ".join(row)}')
-            line_count += 1
+    for usuario in csv_reader:
 
-        # Aquí se debe escribir todo lo que se quiere hacer con el archivo
-'''
+        # Valores
+        nombre = usuario[0]
+        curso = usuario[1]
+        fechaInicio = usuario[2]
+        fechaFin = usuario[3]
 
-canvas = Canvas("samplePDF.pdf")
-canvas.setPageSize((ancho_constancia, alto_constancia))
-canvas.setFont("Times-Roman", 18)    # Fuentes disponibles: Courier, Helvetica y Times-Roman
+        # Plantilla
+        nombreLimpio = clean_string(nombre)
+        contador = 0
+        while os.path.exists(f"{nombreLimpio}_constancia2024-1_{contador}.pdf"):
+           contador+=1
+        canvas = Canvas(f"{nombreLimpio}_constancia2024-1_{contador}.pdf")
+        canvas.setPageSize((ancho_constancia, alto_constancia))
+        canvas.drawImage(plantilla, 0, 0, ancho_constancia, alto_constancia)
+        canvas.setFillColor(black)
 
-# Barras amarillas superior e inferior
-canvas.setFillColor(goldenrod)
-canvas.rect(0, ancho_barras, ancho_constancia, ancho_barras, stroke=0, fill=1)
-canvas.rect(0, alto_constancia-2*ancho_barras, ancho_constancia, ancho_barras, stroke=0, fill=1)
+        # Nombre
+        canvas.setFont("Times-Roman", 100)
+        nameLength = stringWidth(nombre, 'Times-Roman', 100)
+        y_nombre = 560*mm
+        canvas.drawString((ancho_constancia - nameLength)/2, y_nombre, nombre)
 
-# Logo PROTECO
-canvas.drawImage(logoPROTECO, 27*mm, 159*mm, anchoPROTECO, altoPROTECO)
+        # Curso
+        cursoLength = stringWidth(curso, 'Times-Roman', 100)
+        y_curso = 470*mm
+        canvas.drawString((ancho_constancia - cursoLength)/2, y_curso, curso)
 
-# Barras azules superior e inferior
-canvas.setFillColor(darkblue)
-canvas.rect(0, alto_constancia - ancho_barras, ancho_constancia, ancho_barras, stroke=0, fill=1)
-canvas.rect(0, 0, ancho_constancia, ancho_barras, stroke=0, fill=1)
+        # Fechas
+        canvas.setFontSize(17*mm)
+        y_fecha = 421*mm
+        canvas.drawString(346*mm, y_fecha, fechaInicio)
+        canvas.drawString(443*mm, y_fecha, fechaFin)
 
-# Logos FI y UNAM
-canvas.drawImage(logoUNAM, logos_border_padding, y_logos, anchoUNAM, altoUNAM)
-canvas.drawImage(logoFI, ancho_constancia - logos_border_padding - anchoFI, y_logos, anchoFI, altoFI)
+        tipoCurso = 'CI'
+        semestre = '2024-1'
+        categoria = 'B'
+        curso = clean_string(curso)
+        if ('intermedio' in curso or '2' in curso or 'ii' in curso or 'll' in curso):
+           categoria = 'I'
+        elif ('avanzado' in curso or '3' in curso or 'iii' in curso):
+           categoria = 'A'
+        serial_code = f'{tipoCurso}-{semestre}-{categoria}'
 
-# Cadenas del certificado
-# Universidad
-canvas.setFont("Times-Roman", 80)
-canvas.setFillColor(black)
-canvas.drawString(200*mm, 911*mm, "UNIVERSIDAD NACIONAL AUTÓNOMA DE MÉXICO")
-canvas.setFont("Times-Roman", 75)
-canvas.drawString(400*mm, 870*mm, "FACULTAD DE INGENIERÍA")
-canvas.setFont("Times-Roman", 60)
-canvas.drawString(378*mm, 835*mm, "DIVISIÓN DE INGENIERÍA ELÉCTRICA")
-canvas.drawString(382*mm, 805*mm, "DEPARTAMENTO DE COMPUTACIÓN")
+        # Codigos de serie
+        canvas.setFontSize(20*mm)
+        codeLength=stringWidth(serial_code,'Times-Roman', 20*mm)
+        canvas.drawString(ancho_constancia - codeLength - mm, 1.7*inch, serial_code)
 
-# Constancia
-canvas.setFillColor(darkblue)
-canvas.setFont("Times-Roman", 120)
-canvas.drawString(420*mm, 730*mm, "CONSTANCIA")
-
-canvas.save()
+        # Guardar el PDF generado
+        canvas.showPage()
+        canvas.save()
